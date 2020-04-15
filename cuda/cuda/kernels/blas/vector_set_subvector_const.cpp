@@ -17,6 +17,7 @@
 
 // *****************************************************************************
 extern "C" kernel
+// opt v1
 void vector_set_subvector_const0(const int N,
                                  const double value,
                                  double* __restrict data,
@@ -26,11 +27,7 @@ void vector_set_subvector_const0(const int N,
    if (i >= N) { return; }
    const int dof_i = tdofs[i];
    data[dof_i] = value;
-   if (dof_i >= 0)
-   {
-      data[dof_i] = value;
-   }
-   else
+   if (dof_i < 0)
    {
       data[-dof_i-1] = -value;
    }
