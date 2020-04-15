@@ -44,6 +44,32 @@ __global__ void cuKernelDot(const size_t N, double *gdsr,
    }
    if (tid==0) { gdsr[bid] = s_dot[0]; }
 }
+__global__ void cuKernelDot2(const size_t N, double *gdsr,
+                            const double *x)
+{
+   __shared__ double s_dot[CUDA_BLOCKSIZE];
+   const size_t n = blockDim.x*blockIdx.x + threadIdx.x;
+   if (n>=N) { return; }
+   const size_t bid = blockIdx.x;
+   const size_t tid = threadIdx.x;
+   const size_t bbd = bid*blockDim.x;
+   const size_t rid = bbd+tid;
+   double init_a = x[n];
+   s_dot[tid] = init_a * init_a;
+   for (size_t workers=blockDim.x>>1; workers>0; workers>>=1)
+   {
+      __syncthreads();
+      if (tid >= workers) { continue; }
+      if (rid >= N) { continue; }
+      const size_t dualTid = tid + workers;
+      if (dualTid >= N) { continue; }
+      const size_t rdd = bbd+dualTid;
+      if (rdd >= N) { continue; }
+      if (dualTid >= blockDim.x) { continue; }
+      s_dot[tid] += s_dot[dualTid];
+   }
+   if (tid==0) { gdsr[bid] = s_dot[0]; }
+}
 
 // *****************************************************************************
 double cuVectorDot(const size_t N, const double *x, const double *y)
@@ -57,7 +83,12 @@ double cuVectorDot(const size_t N, const double *x, const double *y)
    if (!h_dot) { h_dot = (double*)calloc(dot_sz,sizeof(double)); }
    static CUdeviceptr gdsr = (CUdeviceptr) NULL;
    if (!gdsr) { cuMemAlloc(&gdsr,bytes); }
-   cuKernelDot<<<gridSize,blockSize>>>(N, (double*)gdsr, x, y);
+   if(x==y){
+      cuKernelDot2<<<gridSize,blockSize>>>(N, (double*)gdsr, x);
+   }else{
+      cuKernelDot<<<gridSize,blockSize>>>(N, (double*)gdsr, x, y);
+   }
+   // cuKernelDot<<<gridSize,blockSize>>>(N, (double*)gdsr, x, y);
    cuMemcpy((CUdeviceptr)h_dot,(CUdeviceptr)gdsr,bytes);
    double dot = 0.0;
    for (size_t i=0; i<dot_sz; i+=1) { dot += h_dot[i]; }

@@ -17,7 +17,7 @@
 
 // *****************************************************************************
 extern "C" kernel
-// v2
+// v1 + v2
 void vector_set_subvector_const0(const int N,
                                  double* __restrict data,
                                  const int* __restrict tdofs)
@@ -26,16 +26,11 @@ void vector_set_subvector_const0(const int N,
    if (i >= N) { return; }
    const int dof_i = tdofs[i];
    data[dof_i] = 0.0;
-   if (dof_i >= 0)
-   {
-      data[dof_i] = 0.0;
-   }
-   else
+   if (dof_i < 0)
    {
       data[-dof_i-1] = -0.0;
    }
 }
-
 // *****************************************************************************
 void vector_set_subvector_const(const int N,
                                 const double value,
